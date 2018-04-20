@@ -50,7 +50,7 @@ MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
 
 #include "ktx.h"
 #include "ktxint.h"
-#include "ktxfilestream.h"
+#include "filestream.h"
 
 #if defined(_MSC_VER)
   #if defined(_WIN64)
@@ -290,7 +290,8 @@ KTX_error_code ktxFileStream_getsize(ktxStream* str, ktx_size_t* size)
  *
  * @exception KTX_INVALID_VALUE @p stream is @c NULL or @p file is @c NULL.
  */
-KTX_error_code ktxFileStream_construct(ktxStream* str, FILE* file)
+KTX_error_code ktxFileStream_construct(ktxStream* str, FILE* file,
+                                       ktx_bool_t closeFileOnDestruct)
 {
 	if (!str || !file)
 		return KTX_INVALID_VALUE;
@@ -303,6 +304,29 @@ KTX_error_code ktxFileStream_construct(ktxStream* str, FILE* file)
     str->getpos = ktxFileStream_getpos;
     str->setpos = ktxFileStream_setpos;
     str->getsize = ktxFileStream_getsize;
+    str->destruct = ktxFileStream_destruct;
+    str->closeOnDestruct = closeFileOnDestruct;
 
 	return KTX_SUCCESS;
+}
+
+/**
+ * @internal
+ * @~English
+ * @brief Destruct the stream, potentially closing the underlying FILE.
+ *
+ * This only closes the underyling FILE if the @c closeOnDestruct parameter to
+ * ktxFileStream_construct() was not @c KTX_FALSE.
+ *
+ * @param [in] str pointer to the ktxStream whose FILE is to potentially
+ *             be closed.
+ */
+void
+ktxFileStream_destruct(ktxStream* str)
+{
+    assert(str && str->type == eStreamTypeFile);
+    
+    if (str->closeOnDestruct)
+        fclose(str->data.file);
+    str->data.file = 0;
 }

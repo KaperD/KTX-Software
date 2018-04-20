@@ -47,7 +47,7 @@ MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
 
 #include "ktx.h"
 #include "ktxint.h"
-#include "ktxmemstream.h"
+#include "memstream.h"
 
 /**
 * @brief Default allocation size for a ktxMemStream.
@@ -179,9 +179,12 @@ ktxMem_create_ro(ktxMem** ppMem, const void* bytes, ktx_size_t numBytes)
  * @param pMem pointer to ktxMem to free.
  */
 static void
-ktxMem_destroy(ktxMem* pMem)
+ktxMem_destroy(ktxMem* pMem, ktx_bool_t freeData)
 {
 	assert(pMem != NULL);
+    if (freeData) {
+        free(pMem->bytes);
+    }
 	free(pMem);
 }
 
@@ -492,6 +495,7 @@ ktxMemStream_setup(ktxStream* str)
 	str->getpos = ktxMemStream_getpos;
 	str->setpos = ktxMemStream_setpos;
 	str->getsize = ktxMemStream_getsize;
+    str->destruct = ktxMemStream_destruct;
 }
 
 /**
@@ -500,16 +504,20 @@ ktxMemStream_setup(ktxStream* str)
  * @brief Initialize a read-write ktxMemStream.
  *
  * Memory is allocated as data is written. The caller of this is
- * responsible for freeing this memory.
+ * responsible for freeing this memory unless @a freeOnDestruct
+ * is not KTX_FALSE.
  *
- * @param [in] str      pointer to a ktxStream struct to initialize.
+ * @param [in] str             pointer to a ktxStream struct to initialize.
+ * @param [in] freeOnDestruct  If not KTX_FALSE memory holding the data will
+ *                             be freed by the destructor.
  *
  * @return      KTX_SUCCESS on success, other KTX_* enum values on error.
  *
  * @exception KTX_INVALID_VALUE     @p str is @c NULL.
  * @exception KTX_OUT_OF_MEMORY     system failed to allocate sufficient memory.
  */
-KTX_error_code ktxMemStream_construct(ktxStream* str)
+KTX_error_code ktxMemStream_construct(ktxStream* str,
+                                      ktx_bool_t freeOnDestruct)
 {
 	ktxMem* mem;
 	KTX_error_code result = KTX_SUCCESS;
@@ -522,6 +530,7 @@ KTX_error_code ktxMemStream_construct(ktxStream* str)
 	if (KTX_SUCCESS == result) {
 		str->data.mem = mem;
 		ktxMemStream_setup(str);
+        str->closeOnDestruct = freeOnDestruct;
 	}
 
 	return result;
@@ -538,7 +547,8 @@ KTX_error_code ktxMemStream_construct(ktxStream* str)
  *
  * @return      KTX_SUCCESS on success, other KTX_* enum values on error.
  *
- * @exception KTX_INVALID_VALUE     @p stream is @c NULL or @p mem is @c NULL
+ * @exception KTX_INVALID_VALUE     @p str or @p mem is @c NULL or @p numBytes
+ *                                  is 0.
  *                                  or @p size is less than 0.
  * @exception KTX_OUT_OF_MEMORY     system failed to allocate sufficient memory.
  */
@@ -549,7 +559,7 @@ KTX_error_code ktxMemStream_construct_ro(ktxStream* str,
 	ktxMem* mem;
 	KTX_error_code result = KTX_SUCCESS;
 
-	if (!str)
+	if (!str || !bytes || numBytes == 0)
 		return KTX_INVALID_VALUE;
 
 	result = ktxMem_create_ro(&mem, bytes, numBytes);
@@ -557,6 +567,7 @@ KTX_error_code ktxMemStream_construct_ro(ktxStream* str,
 	if (KTX_SUCCESS == result) {
 		str->data.mem = mem;
 		ktxMemStream_setup(str);
+        str->closeOnDestruct = KTX_FALSE;
 	}
 
 	return result;
@@ -567,13 +578,13 @@ KTX_error_code ktxMemStream_construct_ro(ktxStream* str,
  * @~English
  * @brief Free the memory used by a ktxMemStream.
  *
- * This does not free any memory used to store the
- * data written to the stream. That is the responsibility
- * of the caller of ktxMemStream_construct(). A pointer to this
- * memory should be retrieved by calling ktxMemStream_getdata
- * before calling this function.
+ * This only frees the memory used to store the data written to the stream,
+ * if the @c freeOnDestruct parameter to ktxMemStream_construct() was not
+ * @c KTX_FALSE. Otherwise it is the responsibility of the caller of
+ * ktxMemStream_construct() and a pointer to this memory should be retrieved
+ * using ktxMemStream_getdata() before calling this function.
  *
- * @sa ktxMemStream_getdata.
+ * @sa ktxMemStream_construct, ktxMemStream_getdata.
  *
  * @param [in] str pointer to the ktxStream whose memory is
  *                 to be freed.
@@ -583,6 +594,7 @@ ktxMemStream_destruct(ktxStream* str)
 {
 	assert(str && str->type == eStreamTypeMemory);
 
-	ktxMem_destroy(str->data.mem);
+	ktxMem_destroy(str->data.mem, str->closeOnDestruct);
+    str->data.mem = NULL;
 }
 

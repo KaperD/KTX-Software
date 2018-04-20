@@ -63,7 +63,7 @@ MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
 typedef struct ktxMem ktxMem;
 typedef struct ktxStream ktxStream;
 
-enum streamType { eStreamTypeFile, eStreamTypeMemory };
+enum streamType { eStreamTypeFile = 1, eStreamTypeMemory = 2 };
 
 /**
  * @internal
@@ -113,6 +113,13 @@ typedef KTX_error_code (*ktxStream_getsize)(ktxStream* str, ktx_size_t* const si
 /**
  * @internal
  * @~English
+ * @brief Destruct a stream
+ */
+typedef void (*ktxStream_destruct)(ktxStream* str);
+
+/**
+ * @internal
+ * @~English
  * @brief KTX stream class
  */
 typedef struct ktxStream
@@ -123,12 +130,14 @@ typedef struct ktxStream
     ktxStream_getpos getpos; /*!< @internal pointer to function for getting current position in stream. */
     ktxStream_setpos setpos; /*!< @internal pointer to function for setting current position in stream. */
     ktxStream_getsize getsize; /*!< @internal pointer to function for querying size. */
+    ktxStream_destruct destruct; /*!< @internal destruct the stream. */
 
     enum streamType type;
     union {
         FILE* file;
         ktxMem* mem;
     } data;                /**< @internal pointer to the stream data. */
+    ktx_bool_t closeOnDestruct; /**< @internal Close FILE* or dispose of memory on destruct. */
 } ktxStream;
 
 #endif /* KTXSTREAM_H */

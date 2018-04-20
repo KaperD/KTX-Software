@@ -35,15 +35,27 @@ MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
  * by Mark Callow and Georg Kolling
  */
 
-#ifndef KTXFILESTREAM_H
-#define KTXFILESTREAM_H
+#ifndef MEMSTREAM_H
+#define MEMSTREAM_H
 
 #include "ktx.h"
-#include "ktxstream.h"
+#include "stream.h"
 
 /*
- * ktxFileInit: Initialize a ktxStream to a ktxFileStream with a FILE object
+ * Initialize a ktxStream to a ktxMemStream with internally
+ * allocated memory. Can be read or written.
  */
-KTX_error_code ktxFileStream_construct(ktxStream* str, FILE* file);
+KTX_error_code ktxMemStream_construct(ktxStream* str,
+                                      ktx_bool_t freeOnDestruct);
+/*
+ * Initialize a ktxStream to a read-only ktxMemStream reading
+ * from an array of bytes.
+ */
+KTX_error_code ktxMemStream_construct_ro(ktxStream* str,
+										 const ktx_uint8_t* pBytes,
+										 const ktx_size_t size);
+void ktxMemStream_destruct(ktxStream* str);
 
-#endif /* KTXFILESTREAM_H */
+KTX_error_code ktxMemStream_getdata(ktxStream* str, ktx_uint8_t** ppBytes);
+
+#endif /* MEMSTREAM_H */
