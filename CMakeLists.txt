@@ -35,7 +35,11 @@ option( KTX_FEATURE_DOC "Create KTX documentation" OFF )
 option( KTX_FEATURE_LOADTEST_APPS "Create load tests apps that load and display various KTX textures" OFF )
 option( KTX_FEATURE_STATIC_LIBRARY "Create static libraries (shared otherwise)" ${LIB_TYPE_DEFAULT} )
 option( KTX_FEATURE_TESTS "Create unit tests" ON )
-
+CMAKE_DEPENDENT_OPTION(KTX_FEATURE_WEB_ASM_JS "Create asm.js code instead of WebAssembly" ON "EMSCRIPTEN" OFF)
+CMAKE_DEPENDENT_OPTION(KTX_FEATURE_WEB_LEGACY_BROWSER "Support legacy browsers" ON "EMSCRIPTEN" OFF)
+if(EMSCRIPTEN)
+    set(KTX_FEATURE_WEB_ASM_JS_INITIAL_MEMORY "64MB" CACHE STRING "Memory size (constant) for asm.js (INITIAL_MEMORY Emscripten parameter)")
+endif()
 
 set(VULKAN_INSTALL_DIR "" CACHE PATH "Path to installation of Vulkan SDK (obtainable from https://vulkan.lunarg.com/sdk/home )")
 
@@ -445,12 +449,30 @@ if(EMSCRIPTEN)
         KTX_EMC_LINK_FLAGS
         --bind
         "SHELL:--source-map-base ./"
-        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
         "SHELL:-s ASSERTIONS=0"
         "SHELL:-s MALLOC=emmalloc"
         "SHELL:-s MODULARIZE=1"
         "SHELL:-s FULL_ES3=1"
     )
+
+    if(KTX_FEATURE_WEB_ASM_JS)
+        list(APPEND
+            KTX_EMC_LINK_FLAGS
+            "SHELL:-s WASM=0"
+            "SHELL:-s TOTAL_MEMORY=${KTX_FEATURE_WEB_ASM_JS_INITIAL_MEMORY}"
+        )
+        if(KTX_FEATURE_WEB_LEGACY_BROWSER)
+            list(APPEND KTX_EMC_LINK_FLAGS "SHELL:-s LEGACY_VM_SUPPORT=1")
+        endif()
+        set(WEB_SECONDARY_ARTIFACT_EXTENSION ".js.mem")
+    else()
+        list(APPEND
+            KTX_EMC_LINK_FLAGS
+            "SHELL:-s WASM=1"
+            "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+        )
+        set(WEB_SECONDARY_ARTIFACT_EXTENSION ".wasm")
+    endif()
 
     add_executable( ktx_js interface/js_binding/ktx_wrapper.cpp )
     target_link_libraries( ktx_js ktx_read )
@@ -469,8 +491,8 @@ if(EMSCRIPTEN)
         TARGET ktx_js
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:ktx_js>/$<TARGET_FILE_PREFIX:ktx_js>$<TARGET_FILE_BASE_NAME:ktx_js>.js" "${PROJECT_SOURCE_DIR}/tests/webgl"
-        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:ktx_js>/$<TARGET_FILE_PREFIX:ktx_js>$<TARGET_FILE_BASE_NAME:ktx_js>.wasm" "${PROJECT_SOURCE_DIR}/tests/webgl"
-        COMMENT "Copy libktx.js and libktx.wasm to tests/webgl"
+        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:ktx_js>/$<TARGET_FILE_PREFIX:ktx_js>$<TARGET_FILE_BASE_NAME:ktx_js>${WEB_SECONDARY_ARTIFACT_EXTENSION}" "${PROJECT_SOURCE_DIR}/tests/webgl"
+        COMMENT "Copy libktx.js and libktx${WEB_SECONDARY_ARTIFACT_EXTENSION} to tests/webgl"
     )
 
     install(TARGETS ktx_js
@@ -508,11 +530,11 @@ if(EMSCRIPTEN)
     set_target_properties( msc_basis_transcoder_js PROPERTIES OUTPUT_NAME "msc_basis_transcoder")
 
     add_custom_command(
-        TARGET ktx_js
+        TARGET msc_basis_transcoder_js
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:msc_basis_transcoder_js>/$<TARGET_FILE_PREFIX:msc_basis_transcoder_js>$<TARGET_FILE_BASE_NAME:msc_basis_transcoder_js>.js" "${PROJECT_SOURCE_DIR}/tests/webgl"
-        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:msc_basis_transcoder_js>/$<TARGET_FILE_PREFIX:msc_basis_transcoder_js>$<TARGET_FILE_BASE_NAME:msc_basis_transcoder_js>.wasm" "${PROJECT_SOURCE_DIR}/tests/webgl"
-        COMMENT "Copy msc_basis_transcoder.js and msc_basis_transcoder.wasm to tests/webgl"
+        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:msc_basis_transcoder_js>/$<TARGET_FILE_PREFIX:msc_basis_transcoder_js>$<TARGET_FILE_BASE_NAME:msc_basis_transcoder_js>${WEB_SECONDARY_ARTIFACT_EXTENSION}" "${PROJECT_SOURCE_DIR}/tests/webgl"
+        COMMENT "Copy msc_basis_transcoder.js and msc_basis_transcoder${WEB_SECONDARY_ARTIFACT_EXTENSION} to tests/webgl"
     )
 
     install(TARGETS msc_basis_transcoder_js
