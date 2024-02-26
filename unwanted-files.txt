@@ -1,0 +1,10 @@
+lib/astc-encoder/
+lib/basisu/bin/
+lib/basisu/test_files/
+lib/basisu/webgl/
+lib/basisu/webgl_videotest/
+lib/astc_encode.cpp
+lib/basis_encode.cpp
+lib/etcdec.cxx
+lib/etcunpack.cxx
+lib/glloader.c
