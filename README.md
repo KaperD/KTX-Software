@@ -3,6 +3,14 @@
 
 <img src="https://www.khronos.org/assets/images/api_logos/khronos.svg" width="300"/>
 
+# Обновление репозитория
+Используется [git-filter-repo](https://github.com/newren/git-filter-repo), чтобы оставить только нужные файлы (полный размер репозиторию больше 500МБ). Она уже лежит в этом репозитории в виде python файла.
+
+Процесс обновления есть в скрипте:
+```bash
+./rebase-upstream.sh <branch>
+```
+
 The Official Khronos KTX Software Repository
 ---
 
